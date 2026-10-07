@@ -1,0 +1,48 @@
+@import 'reactflow/dist/style.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-brand-primary: #0F513E;
+    --color-brand-accent: #00A97A;
+    --color-surface-base: #ffffff;
+    --color-surface-subtle: #f8fafc;
+    --color-surface-muted: #f1f5f9;
+    --color-surface-border: #e2e8f0;
+    --color-foreground: #0f172a;
+    --color-foreground-muted: #475569;
+  }
+
+  body {
+    @apply bg-surface-subtle text-surface-foreground font-sans antialiased;
+    color: var(--color-foreground);
+    background-color: var(--color-surface-subtle);
+  }
+
+  /* Accessible focus ring style */
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand-accent ring-offset-2 ring-offset-white;
+  }
+}
+
+/* Custom scrollbars for industrial density */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
