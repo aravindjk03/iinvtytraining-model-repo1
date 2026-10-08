@@ -26,7 +26,7 @@ import type { StressCategory, ChallengeRunItem } from '@/types/challenge';
 
 export const ChallengePage: React.FC = () => {
   const navigate = useNavigate();
-  const { activeModel } = useModel();
+  const { activeModel, unlockAllStages } = useModel();
   const { classes } = useDataset();
   const {
     history,
@@ -164,14 +164,24 @@ export const ChallengePage: React.FC = () => {
               You must train and evaluate a model before subjecting it to adversarial stress tests.
             </p>
           </div>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => navigate('/train')}
-            rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
-          >
-            Go to Train Module
-          </Button>
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={unlockAllStages}
+              leftIcon={<Zap className="w-3.5 h-3.5 text-amber-300" />}
+            >
+              ⚡ ACTIVATE PRETRAINED MODEL & UNLOCK CHALLENGE LAB
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/train')}
+              rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
+            >
+              Go to Train Module
+            </Button>
+          </div>
         </div>
       </div>
     );

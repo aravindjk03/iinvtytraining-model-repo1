@@ -40,7 +40,7 @@ export const TrainPage: React.FC = () => {
     cancelTrainingJob,
     trainingHistory,
   } = useTraining();
-  const { activeModel } = useModel();
+  const { activeModel, unlockAllStages } = useModel();
   const { isOnline } = useModelEngineHealth();
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -343,7 +343,21 @@ export const TrainPage: React.FC = () => {
               Profile: workshop_cpu • {trainingConfig.epochs} epochs
             </span>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {(!activeModel || !isReadyToTrain) && (
+                <Button
+                  variant="outline"
+                  size="md"
+                  onClick={() => {
+                    unlockAllStages();
+                    navigate('/test');
+                  }}
+                  className="border-amber-400 bg-amber-50 text-amber-900 hover:bg-amber-100 font-mono text-xs"
+                >
+                  ⚡ QUICK UNLOCK: ACTIVATE MODEL & PROCEED TO TEST
+                </Button>
+              )}
+
               {isModelTrainable && (
                 <Button
                   variant="primary"

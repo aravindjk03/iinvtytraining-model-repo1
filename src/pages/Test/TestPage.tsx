@@ -8,6 +8,7 @@ import {
   ArrowRight,
   Eye,
   AlertTriangle,
+  Zap,
 } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
@@ -19,7 +20,7 @@ import { CameraCaptureModal } from '@/components/dataset/CameraCaptureModal';
 
 export const TestPage: React.FC = () => {
   const navigate = useNavigate();
-  const { activeModel } = useModel();
+  const { activeModel, unlockAllStages } = useModel();
   const { images } = useDataset();
   const { runTestInference, isInferring } = useTesting();
 
@@ -115,14 +116,24 @@ export const TestPage: React.FC = () => {
               You must dispatch and complete a training run in the Train Module before evaluating inference against safety rules.
             </p>
           </div>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => navigate('/train')}
-            rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
-          >
-            Go to Train Module
-          </Button>
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={unlockAllStages}
+              leftIcon={<Zap className="w-3.5 h-3.5 text-amber-300" />}
+            >
+              ⚡ ACTIVATE PRETRAINED MODEL & UNLOCK TEST LAB
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/train')}
+              rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
+            >
+              Go to Train Module
+            </Button>
+          </div>
         </div>
       </div>
     );

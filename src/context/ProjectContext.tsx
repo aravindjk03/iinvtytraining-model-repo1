@@ -66,6 +66,7 @@ const LOCAL_STORAGE_PROJECT_KEY = 'ai_safety_project_v1';
 const LOCAL_STORAGE_TRAINING_CONFIG_KEY = 'ai_safety_training_config_v1';
 const LOCAL_STORAGE_ACTIVE_MODEL_KEY = 'ai_safety_active_model_v1';
 const LOCAL_STORAGE_TRAINING_HISTORY_KEY = 'ai_safety_training_history_v1';
+const LOCAL_STORAGE_UNLOCKED_ALL_KEY = 'ai_safety_unlocked_all_v1';
 
 export interface ProjectContextType {
   // Project
@@ -148,6 +149,8 @@ export interface ProjectContextType {
   journeySteps: JourneyStepInfo[];
   sidebarStatus: ProjectSidebarStatus;
   canAccessStep: (step: JourneyStepId) => boolean;
+  isUnlockedAll: boolean;
+  unlockAllStages: () => void;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
@@ -966,6 +969,34 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
   // 6. Journey State & Navigation Prerequisite Logic
   const [currentStep, setCurrentStep] = useState<JourneyStepId>('BUILD');
 
+  const [isUnlockedAll, setIsUnlockedAll] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(LOCAL_STORAGE_UNLOCKED_ALL_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const unlockAllStages = useCallback(() => {
+    setIsUnlockedAll(true);
+    try {
+      localStorage.setItem(LOCAL_STORAGE_UNLOCKED_ALL_KEY, 'true');
+    } catch {
+      // ignore
+    }
+    const workshopModel: ModelMetadata = {
+      modelId: selectedWorkflowModel.modelId || 'ppe-workshop-v1',
+      modelName: selectedWorkflowModel.modelName || 'PPE Detection AI (Pretrained Workshop)',
+      trainedAt: new Date().toISOString(),
+      epochs: 20,
+      metrics: { precision: 0.93, recall: 0.89, map50: 0.91, map50_95: 0.74 },
+    };
+    updateActiveModel(workshopModel);
+    setTrainingHistory((prev) => [workshopModel, ...prev]);
+    repo2Connector.setDemoMode(true);
+    setCurrentStep('TEST');
+  }, [selectedWorkflowModel, updateActiveModel]);
+
   const isWorkflowCompleted = useMemo(() => {
     return workflow.nodes.length > 0 && workflowValidation.isValid;
   }, [workflow.nodes.length, workflowValidation.isValid]);
@@ -975,8 +1006,8 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
   }, [datasetQuality.status, classes.length, images.length]);
 
   const hasTrainedModel = useMemo(() => {
-    return activeModel !== null || trainingHistory.length > 0;
-  }, [activeModel, trainingHistory.length]);
+    return activeModel !== null || trainingHistory.length > 0 || isUnlockedAll;
+  }, [activeModel, trainingHistory.length, isUnlockedAll]);
 
   const hasChallengeRun = useMemo(() => {
     return challengeHistory.length > 0;
@@ -985,6 +1016,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
   const canAccessStep = useCallback(
     (step: JourneyStepId): boolean => {
       if (!project?.id) return false;
+      if (isUnlockedAll) return true;
       switch (step) {
         case 'BUILD':
           return true;
@@ -1002,7 +1034,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
           return false;
       }
     },
-    [project?.id, isWorkflowCompleted, isDatasetReady, hasTrainedModel, hasChallengeRun]
+    [project?.id, isUnlockedAll, isWorkflowCompleted, isDatasetReady, hasTrainedModel, hasChallengeRun]
   );
 
   const journeySteps: JourneyStepInfo[] = useMemo(() => {
@@ -1048,7 +1080,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
         stepNumber: '04',
         title: 'Test',
         route: '/test',
-        isPrereqMet: hasProject && hasTrainedModel,
+        isPrereqMet: hasProject && (hasTrainedModel || isUnlockedAll),
         isCompleted: testEvaluation !== null,
         prerequisiteDescription: 'Requires trained safety model',
       },
@@ -1057,7 +1089,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
         stepNumber: '05',
         title: 'Challenge',
         route: '/challenge',
-        isPrereqMet: hasProject && hasTrainedModel,
+        isPrereqMet: hasProject && (hasTrainedModel || isUnlockedAll),
         isCompleted: hasChallengeRun,
         prerequisiteDescription: 'Requires trained safety model',
       },
@@ -1066,7 +1098,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
         stepNumber: '06',
         title: 'Improve',
         route: '/improve',
-        isPrereqMet: hasProject && (hasChallengeRun || hasTrainedModel),
+        isPrereqMet: hasProject && (hasChallengeRun || hasTrainedModel || isUnlockedAll),
         isCompleted: challengeHistory.some((c) => c.result === 'FAILED'),
         prerequisiteDescription: 'Requires challenge test run results',
       },
@@ -1105,6 +1137,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
     datasetQuality.status,
     testEvaluation,
     challengeHistory,
+    isUnlockedAll,
   ]);
 
   const sidebarStatus: ProjectSidebarStatus = useMemo(() => {
@@ -1225,6 +1258,8 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
         journeySteps,
         sidebarStatus,
         canAccessStep,
+        isUnlockedAll,
+        unlockAllStages,
       }}
     >
       {children}
@@ -1300,6 +1335,7 @@ export function useModel() {
   return {
     activeModel: context.activeModel,
     setActiveModel: context.setActiveModel,
+    unlockAllStages: context.unlockAllStages,
   };
 }
 
@@ -1337,6 +1373,8 @@ export function useJourney() {
     setCurrentStep: context.setCurrentStep,
     sidebarStatus: context.sidebarStatus,
     canAccessStep: context.canAccessStep,
+    isUnlockedAll: context.isUnlockedAll,
+    unlockAllStages: context.unlockAllStages,
   };
 }
 

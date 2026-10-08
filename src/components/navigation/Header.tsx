@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, RefreshCw, X, Server, AlertTriangle } from 'lucide-react';
+import { Menu, RefreshCw, X, Server, AlertTriangle, Zap, CheckCircle2 } from 'lucide-react';
 import { APP_CONFIG } from '@/config/constants';
 import { useModelEngineHealth } from '@/hooks/useModelEngineHealth';
 import { useProjectOptional } from '@/context/ProjectContext';
@@ -23,6 +23,9 @@ export const Header: React.FC<HeaderProps> = ({
   const { engineState, isChecking, health, recheck } = useModelEngineHealth();
   const [showStatusModal, setShowStatusModal] = useState(false);
   const projectContext = useProjectOptional();
+  const isUnlockedAll = projectContext?.isUnlockedAll ?? false;
+  const hasActiveModel = Boolean(projectContext?.activeModel);
+  const unlockAllStages = projectContext?.unlockAllStages;
 
   // Read project from context if not explicitly provided as a prop
   const activeProjectName =
@@ -60,8 +63,29 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Right: Engine Connectivity Indicator */}
+      {/* Right: Quick Unlock & Engine Connectivity Indicator */}
       <div className="flex items-center gap-3">
+        {/* Quick Unlock Action when Test & Challenge are locked */}
+        {!hasActiveModel && !isUnlockedAll && unlockAllStages && (
+          <button
+            type="button"
+            onClick={unlockAllStages}
+            title="Unlock Stage 04 Test & Stage 05 Challenge with pretrained safety model"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-amber-500 hover:bg-amber-600 text-white font-mono text-xs font-bold shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400"
+          >
+            <Zap className="w-3.5 h-3.5 text-white animate-pulse" />
+            <span className="hidden md:inline">Unlock Test & Challenge</span>
+            <span className="md:hidden">Unlock</span>
+          </button>
+        )}
+
+        {(hasActiveModel || isUnlockedAll) && (
+          <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+            <span>Test & Challenge Ready</span>
+          </span>
+        )}
+
         {/* Mobile Project indicator */}
         <div className="sm:hidden flex flex-col text-right max-w-[120px]">
           <span className="text-[10px] text-slate-400 font-mono">Project</span>
