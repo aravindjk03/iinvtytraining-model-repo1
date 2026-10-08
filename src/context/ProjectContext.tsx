@@ -33,7 +33,16 @@ import type {
   ChallengeSessionStats,
   StressCategory,
 } from '@/types/challenge';
-import type { Project } from '@/types/project';
+import type {
+  Project,
+  JourneyStepId,
+  JourneyStepStatus,
+  JourneyStepInfo,
+  ProjectSidebarStatus,
+  WorkflowStatusDisplay,
+  DatasetStatusDisplay,
+  ModelStatusDisplay,
+} from '@/types/project';
 
 import {
   STARTER_SERIALIZABLE_WORKFLOW,
@@ -121,6 +130,13 @@ export interface ProjectContextType {
   }) => Promise<ChallengeRunItem>;
   addFailedExampleToDataset: (challengeItem: ChallengeRunItem) => void;
   clearChallengeHistory: () => void;
+
+  // Journey & Sidebar State
+  currentStep: JourneyStepId;
+  setCurrentStep: (step: JourneyStepId) => void;
+  journeySteps: JourneyStepInfo[];
+  sidebarStatus: ProjectSidebarStatus;
+  canAccessStep: (step: JourneyStepId) => boolean;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
@@ -128,11 +144,39 @@ const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 export interface ProjectProviderProps {
   children: ReactNode;
   initialActiveModel?: ModelMetadata | null;
+  initialProject?: Project | null;
+  initialWorkflow?: SerializableWorkflow | null;
 }
 
-export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children, initialActiveModel }) => {
+export const ProjectProvider: React.FC<ProjectProviderProps> = ({
+  children,
+  initialActiveModel,
+  initialProject,
+  initialWorkflow,
+}) => {
   // 1. Project Info
   const [project, setProject] = useState<Project>(() => {
+    if (initialProject !== undefined) {
+      return (
+        initialProject || {
+          id: '',
+          name: '',
+          safetyProblem: '',
+          aiGoal: '',
+          mission: 'CUSTOM',
+          currentStep: 'BUILD',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: {
+            workflow: 'not_started',
+            dataset: 'not_started',
+            model: 'not_started',
+            testing: 'not_started',
+            challenge: 'not_started',
+          },
+        }
+      );
+    }
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_PROJECT_KEY);
       if (saved) return JSON.parse(saved);
@@ -143,6 +187,9 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children, init
       id: 'proj-helmet-01',
       name: 'Helmet Safety Detection',
       safetyProblem: 'Detect whether workers are wearing helmets.',
+      aiGoal: 'Identify helmet and no-helmet compliance in real time.',
+      mission: 'PPE',
+      currentStep: 'BUILD',
       description: 'Vision AI workflow for PPE hardhat compliance inspection.',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -170,6 +217,17 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children, init
 
   // 2. Workflow State
   const [workflow, setWorkflow] = useState<SerializableWorkflow>(() => {
+    if (initialWorkflow !== undefined) {
+      return (
+        initialWorkflow || {
+          version: '1.0',
+          projectId: '',
+          nodes: [],
+          connections: [],
+          metadata: { updatedAt: new Date().toISOString() },
+        }
+      );
+    }
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_WORKFLOW_KEY);
       if (saved) return JSON.parse(saved);
@@ -829,6 +887,211 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children, init
     setChallengeHistory([]);
   }, []);
 
+  // 6. Journey State & Navigation Prerequisite Logic
+  const [currentStep, setCurrentStep] = useState<JourneyStepId>('BUILD');
+
+  const isWorkflowCompleted = useMemo(() => {
+    return workflow.nodes.length > 0 && workflowValidation.isValid;
+  }, [workflow.nodes.length, workflowValidation.isValid]);
+
+  const isDatasetReady = useMemo(() => {
+    return datasetQuality.status === 'READY' || (classes.length >= 2 && images.length >= 10);
+  }, [datasetQuality.status, classes.length, images.length]);
+
+  const hasTrainedModel = useMemo(() => {
+    return activeModel !== null || trainingHistory.length > 0;
+  }, [activeModel, trainingHistory.length]);
+
+  const hasChallengeRun = useMemo(() => {
+    return challengeHistory.length > 0;
+  }, [challengeHistory.length]);
+
+  const canAccessStep = useCallback(
+    (step: JourneyStepId): boolean => {
+      if (!project?.id) return false;
+      switch (step) {
+        case 'BUILD':
+          return true;
+        case 'TEACH':
+          return isWorkflowCompleted;
+        case 'TRAIN':
+          return isWorkflowCompleted && (isDatasetReady || hasTrainedModel);
+        case 'TEST':
+          return hasTrainedModel;
+        case 'CHALLENGE':
+          return hasTrainedModel;
+        case 'IMPROVE':
+          return hasChallengeRun || hasTrainedModel;
+        default:
+          return false;
+      }
+    },
+    [project?.id, isWorkflowCompleted, isDatasetReady, hasTrainedModel, hasChallengeRun]
+  );
+
+  const journeySteps: JourneyStepInfo[] = useMemo(() => {
+    const hasProject = Boolean(project?.id);
+    const steps: Array<{
+      id: JourneyStepId;
+      stepNumber: string;
+      title: string;
+      route: string;
+      isPrereqMet: boolean;
+      isCompleted: boolean;
+      prerequisiteDescription: string;
+    }> = [
+      {
+        id: 'BUILD',
+        stepNumber: '01',
+        title: 'Build',
+        route: '/build',
+        isPrereqMet: hasProject,
+        isCompleted: isWorkflowCompleted,
+        prerequisiteDescription: 'Project initialized',
+      },
+      {
+        id: 'TEACH',
+        stepNumber: '02',
+        title: 'Teach',
+        route: '/teach',
+        isPrereqMet: hasProject && isWorkflowCompleted,
+        isCompleted: images.length >= 20 && datasetQuality.status === 'READY',
+        prerequisiteDescription: 'Requires completed workflow with valid input and decision logic',
+      },
+      {
+        id: 'TRAIN',
+        stepNumber: '03',
+        title: 'Train',
+        route: '/train',
+        isPrereqMet: hasProject && isWorkflowCompleted && (isDatasetReady || hasTrainedModel),
+        isCompleted: hasTrainedModel,
+        prerequisiteDescription: 'Requires completed workflow and dataset readiness (≥10 examples per class)',
+      },
+      {
+        id: 'TEST',
+        stepNumber: '04',
+        title: 'Test',
+        route: '/test',
+        isPrereqMet: hasProject && hasTrainedModel,
+        isCompleted: testEvaluation !== null,
+        prerequisiteDescription: 'Requires trained safety model',
+      },
+      {
+        id: 'CHALLENGE',
+        stepNumber: '05',
+        title: 'Challenge',
+        route: '/challenge',
+        isPrereqMet: hasProject && hasTrainedModel,
+        isCompleted: hasChallengeRun,
+        prerequisiteDescription: 'Requires trained safety model',
+      },
+      {
+        id: 'IMPROVE',
+        stepNumber: '06',
+        title: 'Improve',
+        route: '/improve',
+        isPrereqMet: hasProject && (hasChallengeRun || hasTrainedModel),
+        isCompleted: challengeHistory.some((c) => c.result === 'FAILED'),
+        prerequisiteDescription: 'Requires challenge test run results',
+      },
+    ];
+
+    return steps.map((s) => {
+      let status: JourneyStepStatus = 'AVAILABLE';
+      if (!s.isPrereqMet) {
+        status = 'LOCKED';
+      } else if (currentStep === s.id) {
+        status = 'CURRENT';
+      } else if (s.isCompleted) {
+        status = 'COMPLETED';
+      } else {
+        status = 'AVAILABLE';
+      }
+
+      return {
+        id: s.id,
+        stepNumber: s.stepNumber,
+        title: s.title,
+        route: s.route,
+        status,
+        isCompleted: s.isCompleted,
+        prerequisiteDescription: s.prerequisiteDescription,
+      };
+    });
+  }, [
+    project?.id,
+    currentStep,
+    isWorkflowCompleted,
+    isDatasetReady,
+    hasTrainedModel,
+    hasChallengeRun,
+    images.length,
+    datasetQuality.status,
+    testEvaluation,
+    challengeHistory,
+  ]);
+
+  const sidebarStatus: ProjectSidebarStatus = useMemo(() => {
+    let workflowStatus: WorkflowStatusDisplay = 'NOT_STARTED';
+    if (workflow.nodes.length === 0) {
+      workflowStatus = 'NOT_STARTED';
+    } else if (workflowValidation.isValid) {
+      workflowStatus = 'VALID';
+    } else if (workflowValidation.errors.length > 0) {
+      workflowStatus = 'INVALID';
+    } else {
+      workflowStatus = 'IN_PROGRESS';
+    }
+
+    let datasetStatus: DatasetStatusDisplay = 'NOT_STARTED';
+    if (images.length === 0) {
+      datasetStatus = 'NOT_STARTED';
+    } else if (datasetQuality.status === 'READY') {
+      datasetStatus = 'READY';
+    } else if (datasetQuality.issues.length > 0) {
+      datasetStatus = 'INVALID';
+    } else {
+      datasetStatus = 'IN_PROGRESS';
+    }
+
+    let modelStatus: ModelStatusDisplay = 'NO_MODEL';
+    if (isTraining) {
+      modelStatus = 'TRAINING';
+    } else if (activeModel) {
+      modelStatus = 'READY';
+    } else if (trainingError) {
+      modelStatus = 'FAILED';
+    } else {
+      modelStatus = 'NO_MODEL';
+    }
+
+    const lastTrainingRun =
+      trainingHistory.length > 0 ? `Run 0${trainingHistory.length}` : 'None';
+    const activeModelId = activeModel?.modelId || 'None';
+
+    return {
+      projectName: project?.name || 'Helmet Safety AI',
+      workflowStatus,
+      datasetStatus,
+      modelStatus,
+      engineStatus: 'OFFLINE',
+      lastTrainingRun,
+      activeModelId,
+    };
+  }, [
+    project?.name,
+    workflow.nodes.length,
+    workflowValidation.isValid,
+    workflowValidation.errors.length,
+    images.length,
+    datasetQuality.status,
+    datasetQuality.issues.length,
+    isTraining,
+    activeModel,
+    trainingError,
+    trainingHistory.length,
+  ]);
+
   return (
     <ProjectContext.Provider
       value={{
@@ -878,6 +1141,11 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children, init
         runChallengeTest,
         addFailedExampleToDataset,
         clearChallengeHistory,
+        currentStep,
+        setCurrentStep,
+        journeySteps,
+        sidebarStatus,
+        canAccessStep,
       }}
     >
       {children}
@@ -976,4 +1244,22 @@ export function useChallenge() {
     clearHistory: context.clearChallengeHistory,
   };
 }
+
+export function useJourney() {
+  const context = useContext(ProjectContext);
+  if (!context) throw new Error('useJourney must be used within a ProjectProvider');
+  return {
+    journeySteps: context.journeySteps,
+    currentStep: context.currentStep,
+    setCurrentStep: context.setCurrentStep,
+    sidebarStatus: context.sidebarStatus,
+    canAccessStep: context.canAccessStep,
+  };
+}
+
+export function useProjectOptional(): ProjectContextType | undefined {
+  return useContext(ProjectContext);
+}
+
+
 

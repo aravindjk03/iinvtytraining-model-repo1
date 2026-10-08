@@ -3,7 +3,7 @@ export const APP_CONFIG = {
   subtitle: 'Industrial AI Safety Training Platform',
   philosophy: 'BUILD → TEACH → TRAIN → TEST → BREAK → IMPROVE',
   philosophyBullets: 'BUILD • TEACH • TRAIN • TEST • BREAK • IMPROVE',
-  defaultProjectName: 'Industrial Safety Inspection Model',
+  defaultProjectName: 'Helmet Safety AI',
   version: '1.0.0-phase1',
 } as const;
 
@@ -57,6 +57,73 @@ export const NAVIGATION_ROUTES: NavRoute[] = [
     iconName: 'ShieldAlert',
     description: 'Try to expose weaknesses',
   },
+  {
+    path: '/improve',
+    label: 'Improve',
+    stepNumber: '06',
+    iconName: 'RefreshCw',
+    description: 'Improve the dataset and repeat',
+  },
+];
+
+export interface JourneyStageDefinition {
+  id: import('@/types').JourneyStepId;
+  stepNumber: string;
+  label: string;
+  route: string;
+  iconName: 'Workflow' | 'FolderKanban' | 'Cpu' | 'CheckCircle2' | 'ShieldAlert' | 'RefreshCw';
+  description: string;
+}
+
+export const JOURNEY_STAGES: JourneyStageDefinition[] = [
+  {
+    id: 'BUILD',
+    stepNumber: '01',
+    label: 'Build',
+    route: '/build',
+    iconName: 'Workflow',
+    description: 'Wire your AI safety workflow',
+  },
+  {
+    id: 'TEACH',
+    stepNumber: '02',
+    label: 'Teach',
+    route: '/teach',
+    iconName: 'FolderKanban',
+    description: 'Provide examples for your AI',
+  },
+  {
+    id: 'TRAIN',
+    stepNumber: '03',
+    label: 'Train',
+    route: '/train',
+    iconName: 'Cpu',
+    description: 'Train the safety model',
+  },
+  {
+    id: 'TEST',
+    stepNumber: '04',
+    label: 'Test',
+    route: '/test',
+    iconName: 'CheckCircle2',
+    description: 'Test the model against real scenarios',
+  },
+  {
+    id: 'CHALLENGE',
+    stepNumber: '05',
+    label: 'Challenge',
+    route: '/challenge',
+    iconName: 'ShieldAlert',
+    description: 'Try to expose weaknesses',
+  },
+  {
+    id: 'IMPROVE',
+    stepNumber: '06',
+    label: 'Improve',
+    route: '/improve',
+    iconName: 'RefreshCw',
+    description: 'Improve the dataset and repeat',
+  },
 ];
 
 export interface WorkflowCardItem {
@@ -107,7 +174,7 @@ export const WORKFLOW_CARDS: WorkflowCardItem[] = [
     step: '06',
     title: 'IMPROVE',
     description: 'Improve the dataset and repeat.',
-    route: '/teach',
+    route: '/improve',
     badgeText: 'Iterate',
   },
 ];

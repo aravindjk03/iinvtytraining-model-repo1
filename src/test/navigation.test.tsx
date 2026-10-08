@@ -33,7 +33,7 @@ describe('Application Routing & Pages', () => {
 
     expect(screen.getByRole('heading', { name: /AI SAFETY BUILDER/i })).toBeInTheDocument();
     expect(screen.getByText(/BUILD • TEACH • TRAIN • TEST • BREAK • IMPROVE/i)).toBeInTheDocument();
-    expect(screen.getByText('PROJECT STATUS')).toBeInTheDocument();
+    expect(screen.getAllByText('PROJECT STATUS')[0]).toBeInTheDocument();
     expect(screen.getByText('01 BUILD')).toBeInTheDocument();
     expect(screen.getByText('02 TEACH')).toBeInTheDocument();
     expect(screen.getByText('03 TRAIN')).toBeInTheDocument();
