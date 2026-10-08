@@ -56,7 +56,9 @@ import {
   createDatasetManifest,
   createTrainingRequest,
 } from '@/services/dataset';
-import { trainingService, predictionService } from '@/services/api';
+import { trainingService, predictionService, repo2Connector } from '@/services/api';
+import type { DatasetValidationResponse } from '@/types/api';
+
 
 const LOCAL_STORAGE_WORKFLOW_KEY = 'ai_safety_workflow_v1';
 const LOCAL_STORAGE_DATASET_CLASSES_KEY = 'ai_safety_dataset_classes_v1';
@@ -89,6 +91,8 @@ export interface ProjectContextType {
   images: DatasetImageItem[];
   datasetQuality: DatasetQualityReport;
   datasetManifest: DatasetManifest;
+  datasetValidation: DatasetValidationResponse;
+  validateDataset: () => Promise<DatasetValidationResponse>;
   addClass: (name: string) => { success: boolean; error?: string };
   renameClass: (id: string, newName: string) => { success: boolean; error?: string };
   removeClass: (id: string) => void;
@@ -98,7 +102,14 @@ export interface ProjectContextType {
 
   // Training
   trainingConfig: TrainingHyperparameters;
+  selectedWorkflowModel: {
+    modelId: string | null;
+    modelName?: string;
+    taskType?: string;
+    trainable: boolean;
+  };
   updateTrainingConfig: (patch: Partial<TrainingHyperparameters>) => void;
+
   trainingRequest: TrainingRequestPayload;
   activeJob: TrainingJobStatusResponse | null;
   isTraining: boolean;
@@ -583,6 +594,71 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
       // ignore
     }
   }, []);
+
+  // Selected Model from active Visual Workflow
+  const selectedWorkflowModel = useMemo(() => {
+    const modelNode = workflow.nodes.find((n) => n.type === 'model');
+    const cfg = modelNode?.config as { modelId?: string | null; modelName?: string } | undefined;
+    const modelId = cfg?.modelId || null;
+    const modelName = cfg?.modelName || (modelId ? 'Selected Model' : undefined);
+    const trainable = modelId ? !(modelId.includes('fall') || modelId.includes('pose') || modelId.includes('zone')) : true;
+    return {
+      modelId,
+      modelName,
+      taskType: modelNode?.subtype || 'object_detection',
+      trainable,
+    };
+  }, [workflow.nodes]);
+
+  // Dataset Validation State via Repo 2
+  const [datasetValidation, setDatasetValidation] = useState<DatasetValidationResponse>({
+    valid: false,
+    state: 'NOT_CHECKED',
+    summary: {
+      totalImages: 0,
+      classCount: 0,
+      isBalanced: true,
+    },
+    issues: [],
+    warnings: [],
+    message: 'Dataset has not been validated by Model Engine.',
+  });
+
+  const validateDatasetAction = useCallback(async (): Promise<DatasetValidationResponse> => {
+    setDatasetValidation((prev) => ({
+      ...prev,
+      state: 'CHECKING',
+      message: 'Validating dataset with Model Engine...',
+    }));
+
+    try {
+      const res = await repo2Connector.validateDataset({
+        projectId: project.id,
+        datasetId: datasetManifest.datasetId,
+        taskType: selectedWorkflowModel.taskType,
+        classes: classes.map((c) => ({ id: c.id, name: c.name, count: c.count })),
+        imagesCount: images.length,
+      });
+      setDatasetValidation(res);
+      return res;
+    } catch (err) {
+      const fallbackRes: DatasetValidationResponse = {
+        valid: false,
+        state: 'ERROR',
+        summary: {
+          totalImages: images.length,
+          classCount: classes.length,
+          isBalanced: false,
+        },
+        issues: [err instanceof Error ? err.message : 'Unknown validation error'],
+        warnings: [],
+        message: 'Failed to complete dataset validation.',
+      };
+      setDatasetValidation(fallbackRes);
+      return fallbackRes;
+    }
+  }, [project.id, datasetManifest.datasetId, selectedWorkflowModel.taskType, classes, images.length]);
+
 
   // 4. Training Configuration
   const [trainingConfig, setTrainingConfig] = useState<TrainingHyperparameters>(() => {
@@ -1113,6 +1189,8 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
         images,
         datasetQuality,
         datasetManifest,
+        datasetValidation,
+        validateDataset: validateDatasetAction,
         addClass,
         renameClass,
         removeClass,
@@ -1120,6 +1198,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
         removeImage,
         resetDataset,
         trainingConfig,
+        selectedWorkflowModel,
         updateTrainingConfig,
         trainingRequest,
         activeJob,
@@ -1186,6 +1265,8 @@ export function useDataset() {
     images: context.images,
     quality: context.datasetQuality,
     manifest: context.datasetManifest,
+    validation: context.datasetValidation,
+    validateDataset: context.validateDataset,
     addClass: context.addClass,
     renameClass: context.renameClass,
     removeClass: context.removeClass,
@@ -1200,6 +1281,7 @@ export function useTraining() {
   if (!context) throw new Error('useTraining must be used within a ProjectProvider');
   return {
     trainingConfig: context.trainingConfig,
+    selectedWorkflowModel: context.selectedWorkflowModel,
     updateTrainingConfig: context.updateTrainingConfig,
     trainingRequest: context.trainingRequest,
     activeJob: context.activeJob,
@@ -1210,6 +1292,7 @@ export function useTraining() {
     trainingHistory: context.trainingHistory,
   };
 }
+
 
 export function useModel() {
   const context = useContext(ProjectContext);

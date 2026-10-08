@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Info, AlertTriangle } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -20,6 +20,7 @@ import {
   DatasetEducationalPanel,
   TrainingConfigCard,
   DatasetReadiness,
+  DatasetValidationCard,
 } from '@/components/dataset';
 
 export const TeachPage: React.FC = () => {
@@ -29,6 +30,8 @@ export const TeachPage: React.FC = () => {
     classes,
     images,
     quality,
+    validation: datasetValidation,
+    validateDataset,
     addClass,
     renameClass,
     removeClass,
@@ -37,7 +40,12 @@ export const TeachPage: React.FC = () => {
     resetDataset,
   } = useDataset();
 
-  const { trainingConfig, updateTrainingConfig, trainingRequest } = useTraining();
+  const {
+    trainingConfig,
+    selectedWorkflowModel,
+    updateTrainingConfig,
+    trainingRequest,
+  } = useTraining();
 
   const [selectedClassId, setSelectedClassId] = useState<string | null>(
     classes.length > 0 ? classes[0].id : null
@@ -61,6 +69,8 @@ export const TeachPage: React.FC = () => {
     addImage(activeClass.id, filename, dataUrl, 52000, 'image/jpeg');
   };
 
+  const isModelTrainable = selectedWorkflowModel.trainable;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -79,6 +89,33 @@ export const TeachPage: React.FC = () => {
           </Button>
         }
       />
+
+      {/* Model Capability & Trainability Banner */}
+      {!isModelTrainable ? (
+        <div className="p-4 rounded-xl border border-sky-300 bg-sky-50 text-sky-950 flex items-start gap-3 shadow-subtle">
+          <Info className="w-5 h-5 text-sky-700 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <h4 className="font-bold text-xs uppercase tracking-wider font-mono text-sky-900">
+              THIS AI DOES NOT REQUIRE CUSTOM TRAINING
+            </h4>
+            <p className="text-xs text-sky-800 leading-relaxed font-sans">
+              The workflow uses a pre-trained capability ({selectedWorkflowModel.modelName || selectedWorkflowModel.modelId}) with deterministic safety logic. You can still test examples below or proceed directly to testing.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="p-3 rounded-lg border border-amber-200 bg-amber-50/80 text-amber-900 text-xs flex items-center justify-between gap-3 font-mono shadow-xs">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />
+            <span>
+              For object detection, training data must contain valid bounding-box annotations.
+            </span>
+          </div>
+          <span className="text-[10px] text-amber-800 uppercase font-bold shrink-0 hidden sm:inline">
+            Model: {selectedWorkflowModel.modelName || selectedWorkflowModel.modelId || 'Custom YOLO'}
+          </span>
+        </div>
+      )}
 
       {/* 1. Project Definition */}
       <ProjectInfoCard project={project} onUpdateProject={updateProject} />
@@ -152,20 +189,27 @@ export const TeachPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 4. Dataset Quality Analysis */}
+      {/* 4. Dataset Quality Analysis (Frontend Evaluation) */}
       <DatasetQuality quality={quality} />
 
-      {/* 5. Training Configuration */}
+      {/* 5. Repo 2 Dataset Validation Card */}
+      <DatasetValidationCard
+        validation={datasetValidation}
+        onValidate={validateDataset}
+      />
+
+      {/* 6. Training Configuration */}
       <TrainingConfigCard
         config={trainingConfig}
         onUpdateConfig={updateTrainingConfig}
       />
 
-      {/* 6. Training Readiness & Actions */}
+      {/* 7. Training Readiness & Actions */}
       <DatasetReadiness
         project={project}
         quality={quality}
         trainingRequest={trainingRequest}
+        datasetValidation={datasetValidation}
         onResetDataset={resetDataset}
       />
 

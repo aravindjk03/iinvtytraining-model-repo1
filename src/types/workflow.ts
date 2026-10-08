@@ -113,6 +113,7 @@ export interface SerializableWorkflow {
 export interface WorkflowValidationResult {
   isValid: boolean;
   errors: string[];
+  structuredErrors?: Array<{ code: string; message: string }>;
   warnings: string[];
   hasInput: boolean;
   hasModel: boolean;
@@ -122,6 +123,7 @@ export interface WorkflowValidationResult {
   disconnectedNodes: string[];
   invalidConnections: string[];
 }
+
 
 export interface WorkflowEvaluationResult {
   predictionSummary: string;

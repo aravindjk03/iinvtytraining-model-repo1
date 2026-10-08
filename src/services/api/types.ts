@@ -67,6 +67,7 @@ export interface PredictionRequest {
   confidenceThreshold?: number;
 }
 
+
 export { ApiClientError as ApiError };
 export type {
   HealthResponse,

@@ -8,3 +8,6 @@ export * from './datasetService';
 export * from './healthService';
 export * from './trainingService';
 export * from './predictionService';
+export * from './repo2Connector';
+export * from './modelCatalog';
+

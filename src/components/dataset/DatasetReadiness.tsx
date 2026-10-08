@@ -18,6 +18,7 @@ export interface DatasetReadinessProps {
   project: Project;
   quality: DatasetQualityReport;
   trainingRequest: TrainingRequestPayload;
+  datasetValidation?: import('@/types/api').DatasetValidationResponse;
   onResetDataset: () => void;
 }
 
@@ -25,6 +26,7 @@ export const DatasetReadiness: React.FC<DatasetReadinessProps> = ({
   project,
   quality,
   trainingRequest,
+  datasetValidation,
   onResetDataset,
 }) => {
   const navigate = useNavigate();
@@ -34,10 +36,11 @@ export const DatasetReadiness: React.FC<DatasetReadinessProps> = ({
   const hasProblem = Boolean(project.safetyProblem && project.safetyProblem.trim().length > 3);
   const hasClasses = quality.classCount >= 2;
   const hasExamples = quality.isThresholdMet;
-  const isChecked = quality.status === 'READY';
+  const isChecked = datasetValidation ? datasetValidation.valid : (quality.status === 'READY');
   const hasConfig = Boolean(trainingRequest.training.epochs > 0);
 
   const isReady = hasProblem && hasClasses && hasExamples && isChecked && hasConfig;
+
 
   return (
     <Card className="border border-surface-border bg-white shadow-subtle">

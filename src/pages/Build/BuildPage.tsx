@@ -337,9 +337,15 @@ export const BuildPage: React.FC = () => {
         nodeCount={workflow.nodes.length}
         connectionCount={workflow.connections.length}
         validation={validation}
+        nodes={workflow.nodes}
         onSave={handleSave}
         onRestoreStarter={resetToStarter}
+        onContinue={() => {
+          saveWorkflow();
+          navigate('/teach');
+        }}
       />
     </div>
   );
 };
+

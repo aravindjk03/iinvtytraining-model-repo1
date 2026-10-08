@@ -28,11 +28,13 @@ export const STARTER_SERIALIZABLE_WORKFLOW: SerializableWorkflow = {
       description: 'Real-time YOLO object detection model',
       position: { x: 340, y: 160 },
       config: {
-        modelId: null,
+        modelId: 'ppe-workshop-v1',
+        modelName: 'PPE Detection',
         confidenceThreshold: 0.5,
         classes: ['helmet', 'vest'],
       },
     },
+
     {
       id: 'node-condition-01',
       type: 'condition',

@@ -15,6 +15,7 @@ export function validateWorkflow(
   const connections = workflow.connections || [];
 
   const errors: string[] = [];
+  const structuredErrors: Array<{ code: string; message: string }> = [];
   const warnings: string[] = [];
   const disconnectedNodes: string[] = [];
   const invalidConnections: string[] = [];
@@ -33,17 +34,36 @@ export function validateWorkflow(
 
   // Rule 1: Node presence
   if (!hasInput) {
-    errors.push('Missing required Input node (e.g. Camera or Image stream)');
+    const msg = 'Missing required Input node (e.g. Camera or Image stream)';
+    errors.push(msg);
+    structuredErrors.push({ code: 'INPUT_MISSING', message: msg });
   }
   if (!hasModel) {
-    errors.push('Missing required AI Model node (e.g. Object Detection)');
+    const msg = 'Missing required AI Model node (e.g. Object Detection)';
+    errors.push(msg);
+    structuredErrors.push({ code: 'AI_MODEL_MISSING', message: msg });
+  } else {
+    // Rule 1b: Every AI Model node must have a modelId selected
+    for (const mNode of modelNodes) {
+      const cfg = mNode.config as { modelId?: string | null; modelName?: string } | undefined;
+      if (!cfg?.modelId) {
+        const msg = `AI Model node "${mNode.title || mNode.id}" requires a selected Model from the catalog.`;
+        errors.push(msg);
+        structuredErrors.push({ code: 'AI_MODEL_NOT_SELECTED', message: msg });
+      }
+    }
   }
   if (!hasConditionOrDecision) {
-    errors.push('Missing Safety Condition or Decision node (e.g. Helmet Detected?)');
+    const msg = 'Missing Safety Condition or Decision node (e.g. Helmet Detected?)';
+    errors.push(msg);
+    structuredErrors.push({ code: 'CONDITION_MISSING', message: msg });
   }
   if (!hasAction) {
-    errors.push('Missing Safety Action node (e.g. Alert or Stop Process)');
+    const msg = 'Missing Safety Action node (e.g. Alert or Stop Process)';
+    errors.push(msg);
+    structuredErrors.push({ code: 'ACTION_MISSING', message: msg });
   }
+
 
   // Build graph adjacency map
   const adj = new Map<string, string[]>();
@@ -183,6 +203,7 @@ export function validateWorkflow(
   return {
     isValid,
     errors,
+    structuredErrors,
     warnings,
     hasInput,
     hasModel,
@@ -193,3 +214,4 @@ export function validateWorkflow(
     invalidConnections,
   };
 }
+
